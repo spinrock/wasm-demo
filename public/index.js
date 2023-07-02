@@ -1006,9 +1006,9 @@ function dbg(text) {
 // === Body ===
 
 var ASM_CONSTS = {
-  66626: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
- 66709: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
- 66810: ($0, $1) => { var addValue = `<div class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; }
+  66642: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
+ 66725: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
+ 66826: ($0, $1, $2) => { var addValue = `<div id=${UTF8ToString($2)} class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; }
 };
 function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)); var str = e.value; var len = lengthBytesUTF8(str) + 1; var heap = _malloc(len); stringToUTF8(str, heap, len); return heap; }
 
@@ -1275,47 +1275,44 @@ function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)
     };
 
 
-  
-  var _proc_exit = (code) => {
-      EXITSTATUS = code;
-      if (!keepRuntimeAlive()) {
-        if (Module['onExit']) Module['onExit'](code);
-        ABORT = true;
-      }
-      quit_(code, new ExitStatus(code));
+  var writeArrayToMemory = (array, buffer) => {
+      assert(array.length >= 0, 'writeArrayToMemory array must have a length (should be an array or typed array)')
+      HEAP8.set(array, buffer);
     };
-  /** @param {boolean|number=} implicit */
-  var exitJS = (status, implicit) => {
-      EXITSTATUS = status;
+  function _uuid_generate(out) {
+      // void uuid_generate(uuid_t out);
+      var uuid = null;
   
-      checkUnflushedContent();
-  
-      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
-      if (keepRuntimeAlive() && !implicit) {
-        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
-        err(msg);
+      if (ENVIRONMENT_IS_NODE) {
+        // If Node.js try to use crypto.randomBytes
+        try {
+          var rb = require('crypto')['randomBytes'];
+          uuid = rb(16);
+        } catch(e) {}
+      } else if (ENVIRONMENT_IS_WEB &&
+                 typeof window.crypto != 'undefined' &&
+                 typeof window.crypto.getRandomValues != 'undefined') {
+        // If crypto.getRandomValues is available try to use it.
+        uuid = new Uint8Array(16);
+        window.crypto.getRandomValues(uuid);
       }
   
-      _proc_exit(status);
-    };
-
-  var handleException = (e) => {
-      // Certain exception types we do not treat as errors since they are used for
-      // internal control flow.
-      // 1. ExitStatus, which is thrown by exit()
-      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
-      //    that wish to return to JS event loop.
-      if (e instanceof ExitStatus || e == 'unwind') {
-        return EXITSTATUS;
-      }
-      checkStackCookie();
-      if (e instanceof WebAssembly.RuntimeError) {
-        if (_emscripten_stack_get_current() <= 0) {
-          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
+      // Fall back to Math.random if a higher quality random number generator is not available.
+      if (!uuid) {
+        uuid = new Array(16);
+        var d = new Date().getTime();
+        for (var i = 0; i < 16; i++) {
+          var r = ((d + Math.random() * 256) % 256)|0;
+          d = (d / 256)|0;
+          uuid[i] = r;
         }
       }
-      quit_(1, e);
-    };
+  
+      // Makes uuid compliant to RFC-4122
+      uuid[6] = (uuid[6] & 0x0F) | 0x40; // uuid version
+      uuid[8] = (uuid[8] & 0x3F) | 0x80; // uuid variant
+      writeArrayToMemory(uuid, out);
+    }
 
   var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       assert(typeof str === 'string');
@@ -1368,6 +1365,62 @@ function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)
       assert(typeof maxBytesToWrite == 'number', 'stringToUTF8(str, outPtr, maxBytesToWrite) is missing the third parameter that specifies the length of the output buffer!');
       return stringToUTF8Array(str, HEAPU8,outPtr, maxBytesToWrite);
     };
+  /** @param {number|boolean=} upper */
+  function _uuid_unparse(uu, out, upper) {
+      // void uuid_unparse(const uuid_t uu, char *out);
+      var i = 0;
+      var uuid = 'xxxx-xx-xx-xx-xxxxxx'.replace(/[x]/g, function(c) {
+        var r = upper ? (HEAPU8[(((uu)+(i))>>0)]).toString(16).toUpperCase() :
+                        (HEAPU8[(((uu)+(i))>>0)]).toString(16);
+        r = (r.length === 1) ? '0' + r : r; // Zero pad single digit hex values
+        i++;
+        return r;
+      });
+      stringToUTF8(uuid, out, 37); // Always fixed 36 bytes of ASCII characters and a trailing \0.
+    }
+
+  
+  var _proc_exit = (code) => {
+      EXITSTATUS = code;
+      if (!keepRuntimeAlive()) {
+        if (Module['onExit']) Module['onExit'](code);
+        ABORT = true;
+      }
+      quit_(code, new ExitStatus(code));
+    };
+  /** @param {boolean|number=} implicit */
+  var exitJS = (status, implicit) => {
+      EXITSTATUS = status;
+  
+      checkUnflushedContent();
+  
+      // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
+      if (keepRuntimeAlive() && !implicit) {
+        var msg = `program exited (with status: ${status}), but keepRuntimeAlive() is set (counter=${runtimeKeepaliveCounter}) due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)`;
+        err(msg);
+      }
+  
+      _proc_exit(status);
+    };
+
+  var handleException = (e) => {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      checkStackCookie();
+      if (e instanceof WebAssembly.RuntimeError) {
+        if (_emscripten_stack_get_current() <= 0) {
+          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
+        }
+      }
+      quit_(1, e);
+    };
+
 
   var lengthBytesUTF8 = (str) => {
       var len = 0;
@@ -1400,7 +1453,9 @@ var wasmImports = {
   "fd_close": _fd_close,
   "fd_seek": _fd_seek,
   "fd_write": _fd_write,
-  "getElementValue_": getElementValue_
+  "getElementValue_": getElementValue_,
+  "uuid_generate": _uuid_generate,
+  "uuid_unparse": _uuid_unparse
 };
 var asm = createWasm();
 /** @type {function(...*):?} */
@@ -1450,8 +1505,8 @@ var _emscripten_stack_get_current = function() {
 
 /** @type {function(...*):?} */
 var dynCall_jiji = Module["dynCall_jiji"] = createExportWrapper("dynCall_jiji");
-var ___start_em_js = Module['___start_em_js'] = 66428;
-var ___stop_em_js = Module['___stop_em_js'] = 66626;
+var ___start_em_js = Module['___start_em_js'] = 66444;
+var ___stop_em_js = Module['___stop_em_js'] = 66642;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===
@@ -1541,7 +1596,6 @@ var missingLibrarySymbols = [
   'lengthBytesUTF32',
   'stringToNewUTF8',
   'stringToUTF8OnStack',
-  'writeArrayToMemory',
   'registerKeyEventCallback',
   'maybeCStringToJsString',
   'findEventTarget',
@@ -1702,6 +1756,7 @@ var unexportedSymbols = [
   'UTF8ToString',
   'stringToUTF8Array',
   'UTF16Decoder',
+  'writeArrayToMemory',
   'JSEvents',
   'specialHTMLTargets',
   'currentFullscreenStrategy',

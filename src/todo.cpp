@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string>
 #include <emscripten.h>
+#include <uuid/uuid.h>
 
 int main() {
     printf("Hello, world\n");
@@ -50,11 +51,18 @@ void setElementInnerHTMLfromInputForm(std::string const &id, std::string const &
 {
     std::string s = getElementValue(id2);
     if(s.empty()) return;
+
+    uuid_t u0;
+    uuid_generate(u0);
+    char c0[16];
+    uuid_unparse(u0, c0);
+    printf("%s",c0);
+
     EM_ASM({
-        var addValue = `<div class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`;
+        var addValue = `<div id=${UTF8ToString($2)} class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`;
         var e = document.getElementById(UTF8ToString($0));
         e.innerHTML = e.innerHTML + addValue;
-    }, id.c_str(), s.c_str());
+    }, id.c_str(), s.c_str(), c0);
 }
 
 extern "C" void EMSCRIPTEN_KEEPALIVE addTodo()
