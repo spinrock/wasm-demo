@@ -16,5 +16,5 @@
 - html : public ディレクトリにあるソースを直接編集する
 - wasm : src にある cpp ファイルを更新してコンパイルする
   ```console
-  % emcc src/hello.cpp -o public/index.js
+  % emcc src/todo.cpp -o public/index.js
   ```
