@@ -1008,7 +1008,8 @@ function dbg(text) {
 var ASM_CONSTS = {
   66642: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
  66725: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
- 66826: ($0, $1, $2) => { var addValue = `<div id=${UTF8ToString($2)} class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; }
+ 66826: ($0, $1, $2) => { var addValue = `<div id=${UTF8ToString($2)} class="todo" onclick="_deleteTodo('${UTF8ToString($2)}')"><p class="todoTitle">${UTF8ToString($1)}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; },  
+ 67074: ($0) => { var e = document.getElementById(UTF8ToString($0)); if(!e.firstElementChild) return; e.removeChild(e.firstElementChild); }
 };
 function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)); var str = e.value; var len = lengthBytesUTF8(str) + 1; var heap = _malloc(len); stringToUTF8(str, heap, len); return heap; }
 
@@ -1464,6 +1465,8 @@ var ___wasm_call_ctors = createExportWrapper("__wasm_call_ctors");
 var _initialized = Module["_initialized"] = createExportWrapper("initialized");
 /** @type {function(...*):?} */
 var _addTodo = Module["_addTodo"] = createExportWrapper("addTodo");
+/** @type {function(...*):?} */
+var _deleteTodo = Module["_deleteTodo"] = createExportWrapper("deleteTodo");
 /** @type {function(...*):?} */
 var _main = Module["_main"] = createExportWrapper("main");
 /** @type {function(...*):?} */

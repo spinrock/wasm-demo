@@ -56,10 +56,9 @@ void setElementInnerHTMLfromInputForm(std::string const &id, std::string const &
     uuid_generate(u0);
     char c0[16];
     uuid_unparse(u0, c0);
-    printf("%s",c0);
 
     EM_ASM({
-        var addValue = `<div id=${UTF8ToString($2)} class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`;
+        var addValue = `<div id=${UTF8ToString($2)} class="todo" onclick="_deleteTodo('${UTF8ToString($2)}')"><p class="todoTitle">${UTF8ToString($1)}</p></div>`;
         var e = document.getElementById(UTF8ToString($0));
         e.innerHTML = e.innerHTML + addValue;
     }, id.c_str(), s.c_str(), c0);
@@ -68,4 +67,19 @@ void setElementInnerHTMLfromInputForm(std::string const &id, std::string const &
 extern "C" void EMSCRIPTEN_KEEPALIVE addTodo()
 {
     setElementInnerHTMLfromInputForm("contents", "input1");
+}
+
+void removeFirstChildElement(std::string const &target_id)
+{
+
+    EM_ASM({
+        var e = document.getElementById(UTF8ToString($0));
+        if(!e.firstElementChild) return;
+        e.removeChild(e.firstElementChild);
+    }, target_id.c_str());
+}
+
+extern "C" void EMSCRIPTEN_KEEPALIVE deleteTodo(const char* a)
+{
+    removeFirstChildElement("contents");
 }
