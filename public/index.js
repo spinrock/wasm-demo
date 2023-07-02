@@ -1009,9 +1009,9 @@ function dbg(text) {
 // === Body ===
 
 var ASM_CONSTS = {
-  66692: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
- 66775: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
- 66876: ($0, $1) => { var addTarget = document.getElementById(UTF8ToString($1)); if (addTarget.value === "") return; var addValue = `<div class="todo"><p class="todoTitle">${addTarget.value}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; addTarget.innerHTML = ""; }
+  66644: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
+ 66727: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
+ 66828: ($0, $1) => { var addTarget = document.getElementById(UTF8ToString($1)); if (addTarget.value === "") return; var addValue = `<div class="todo"><p class="todoTitle">${addTarget.value}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; addTarget.innerHTML = ""; }
 };
 function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)); var str = e.value; console.log(str); var len = lengthBytesUTF8(str) + 1; var heap = _malloc(len); stringToUTF8(str, heap, len); return heap; }
 
@@ -1336,13 +1336,7 @@ var ___wasm_call_ctors = createExportWrapper("__wasm_call_ctors");
 /** @type {function(...*):?} */
 var _initialized = Module["_initialized"] = createExportWrapper("initialized");
 /** @type {function(...*):?} */
-var _clicked1 = Module["_clicked1"] = createExportWrapper("clicked1");
-/** @type {function(...*):?} */
-var _clicked2 = Module["_clicked2"] = createExportWrapper("clicked2");
-/** @type {function(...*):?} */
-var _clicked3 = Module["_clicked3"] = createExportWrapper("clicked3");
-/** @type {function(...*):?} */
-var _clicked4 = Module["_clicked4"] = createExportWrapper("clicked4");
+var _addTodo = Module["_addTodo"] = createExportWrapper("addTodo");
 /** @type {function(...*):?} */
 var _main = Module["_main"] = createExportWrapper("main");
 /** @type {function(...*):?} */
@@ -1382,8 +1376,8 @@ var _emscripten_stack_get_current = function() {
 
 /** @type {function(...*):?} */
 var dynCall_jiji = Module["dynCall_jiji"] = createExportWrapper("dynCall_jiji");
-var ___start_em_js = Module['___start_em_js'] = 66476;
-var ___stop_em_js = Module['___stop_em_js'] = 66692;
+var ___start_em_js = Module['___start_em_js'] = 66428;
+var ___stop_em_js = Module['___stop_em_js'] = 66644;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

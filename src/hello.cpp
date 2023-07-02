@@ -12,11 +12,6 @@ extern "C" void EMSCRIPTEN_KEEPALIVE initialized()
     puts("initialized");
 }
 
-extern "C" void EMSCRIPTEN_KEEPALIVE clicked1()
-{
-    puts("clicked1");
-}
-
 EM_JS(void *, getElementValue_, (char const *id),
 {
     var e = document.getElementById(UTF8ToString(id));
@@ -44,11 +39,6 @@ void setElementValue(std::string const &id, std::string const &value)
     }, id.c_str(), value.c_str());
 }
 
-extern "C" void EMSCRIPTEN_KEEPALIVE clicked2()
-{
-    setElementValue("input1", "Hello, world");
-}
-
 void setElementInnerHTML(std::string const &id, std::string const &html)
 {
     EM_ASM({
@@ -57,12 +47,7 @@ void setElementInnerHTML(std::string const &id, std::string const &html)
     }, id.c_str(), html.c_str());
 }
 
-extern "C" void EMSCRIPTEN_KEEPALIVE clicked3()
-{
-    setElementInnerHTML("contents", "<p>Hello, React world</p>");
-}
-
-void setElementInnerHTMLToHTML(std::string const &id, std::string const &id2)
+void setElementInnerHTMLfromInputForm(std::string const &id, std::string const &id2)
 {
     EM_ASM({
         var addTarget = document.getElementById(UTF8ToString($1));
@@ -74,7 +59,7 @@ void setElementInnerHTMLToHTML(std::string const &id, std::string const &id2)
     }, id.c_str(), id2.c_str());
 }
 
-extern "C" void EMSCRIPTEN_KEEPALIVE clicked4()
+extern "C" void EMSCRIPTEN_KEEPALIVE addTodo()
 {
-    setElementInnerHTMLToHTML("contents", "input1");
+    setElementInnerHTMLfromInputForm("contents", "input1");
 }
