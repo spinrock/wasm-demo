@@ -16,5 +16,5 @@
 - html : public ディレクトリにあるソースを直接編集する
 - wasm : src にある cpp ファイルを更新してコンパイルする
   ```console
-  % emcc src/todo.cpp -o public/index.js
+  % emcc -sEXPORTED_RUNTIME_METHODS=stringToUTF8,lengthBytesUTF8 -sEXPORTED_FUNCTIONS=_malloc,_main src/todo.cpp -o public/index.js
   ```

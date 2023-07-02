@@ -369,9 +369,6 @@ function assert(condition, text) {
 
 // We used to include malloc/free by default in the past. Show a helpful error in
 // builds with assertions.
-function _malloc() {
-  abort("malloc() called but not included in the build - add '_malloc' to EXPORTED_FUNCTIONS");
-}
 function _free() {
   // Show a helpful error since we used to include free by default in the past.
   abort("free() called but not included in the build - add '_free' to EXPORTED_FUNCTIONS");
@@ -1009,11 +1006,11 @@ function dbg(text) {
 // === Body ===
 
 var ASM_CONSTS = {
-  66644: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
- 66727: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
- 66828: ($0, $1) => { var addTarget = document.getElementById(UTF8ToString($1)); if (addTarget.value === "") return; var addValue = `<div class="todo"><p class="todoTitle">${addTarget.value}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; addTarget.innerHTML = ""; }
+  66626: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.value = UTF8ToString($1); },  
+ 66709: ($0, $1) => { var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + UTF8ToString($1); },  
+ 66810: ($0, $1) => { var addValue = `<div class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`; var e = document.getElementById(UTF8ToString($0)); e.innerHTML = e.innerHTML + addValue; }
 };
-function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)); var str = e.value; console.log(str); var len = lengthBytesUTF8(str) + 1; var heap = _malloc(len); stringToUTF8(str, heap, len); return heap; }
+function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)); var str = e.value; var len = lengthBytesUTF8(str) + 1; var heap = _malloc(len); stringToUTF8(str, heap, len); return heap; }
 
 
 // end include: preamble.js
@@ -1277,6 +1274,7 @@ function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)
       return 0;
     };
 
+
   
   var _proc_exit = (code) => {
       EXITSTATUS = code;
@@ -1318,6 +1316,79 @@ function getElementValue_(id) { var e = document.getElementById(UTF8ToString(id)
       }
       quit_(1, e);
     };
+
+  var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
+      assert(typeof str === 'string');
+      // Parameter maxBytesToWrite is not optional. Negative values, 0, null,
+      // undefined and false each don't write out any bytes.
+      if (!(maxBytesToWrite > 0))
+        return 0;
+  
+      var startIdx = outIdx;
+      var endIdx = outIdx + maxBytesToWrite - 1; // -1 for string null terminator.
+      for (var i = 0; i < str.length; ++i) {
+        // Gotcha: charCodeAt returns a 16-bit word that is a UTF-16 encoded code
+        // unit, not a Unicode code point of the character! So decode
+        // UTF16->UTF32->UTF8.
+        // See http://unicode.org/faq/utf_bom.html#utf16-3
+        // For UTF8 byte structure, see http://en.wikipedia.org/wiki/UTF-8#Description
+        // and https://www.ietf.org/rfc/rfc2279.txt
+        // and https://tools.ietf.org/html/rfc3629
+        var u = str.charCodeAt(i); // possibly a lead surrogate
+        if (u >= 0xD800 && u <= 0xDFFF) {
+          var u1 = str.charCodeAt(++i);
+          u = 0x10000 + ((u & 0x3FF) << 10) | (u1 & 0x3FF);
+        }
+        if (u <= 0x7F) {
+          if (outIdx >= endIdx) break;
+          heap[outIdx++] = u;
+        } else if (u <= 0x7FF) {
+          if (outIdx + 1 >= endIdx) break;
+          heap[outIdx++] = 0xC0 | (u >> 6);
+          heap[outIdx++] = 0x80 | (u & 63);
+        } else if (u <= 0xFFFF) {
+          if (outIdx + 2 >= endIdx) break;
+          heap[outIdx++] = 0xE0 | (u >> 12);
+          heap[outIdx++] = 0x80 | ((u >> 6) & 63);
+          heap[outIdx++] = 0x80 | (u & 63);
+        } else {
+          if (outIdx + 3 >= endIdx) break;
+          if (u > 0x10FFFF) warnOnce('Invalid Unicode code point ' + ptrToString(u) + ' encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).');
+          heap[outIdx++] = 0xF0 | (u >> 18);
+          heap[outIdx++] = 0x80 | ((u >> 12) & 63);
+          heap[outIdx++] = 0x80 | ((u >> 6) & 63);
+          heap[outIdx++] = 0x80 | (u & 63);
+        }
+      }
+      // Null-terminate the pointer to the buffer.
+      heap[outIdx] = 0;
+      return outIdx - startIdx;
+    };
+  var stringToUTF8 = (str, outPtr, maxBytesToWrite) => {
+      assert(typeof maxBytesToWrite == 'number', 'stringToUTF8(str, outPtr, maxBytesToWrite) is missing the third parameter that specifies the length of the output buffer!');
+      return stringToUTF8Array(str, HEAPU8,outPtr, maxBytesToWrite);
+    };
+
+  var lengthBytesUTF8 = (str) => {
+      var len = 0;
+      for (var i = 0; i < str.length; ++i) {
+        // Gotcha: charCodeAt returns a 16-bit word that is a UTF-16 encoded code
+        // unit, not a Unicode code point of the character! So decode
+        // UTF16->UTF32->UTF8.
+        // See http://unicode.org/faq/utf_bom.html#utf16-3
+        var c = str.charCodeAt(i); // possibly a lead surrogate
+        if (c <= 0x7F) {
+          len++;
+        } else if (c <= 0x7FF) {
+          len += 2;
+        } else if (c >= 0xD800 && c <= 0xDFFF) {
+          len += 4; ++i;
+        } else {
+          len += 3;
+        }
+      }
+      return len;
+    };
 function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
@@ -1328,7 +1399,8 @@ var wasmImports = {
   "emscripten_resize_heap": _emscripten_resize_heap,
   "fd_close": _fd_close,
   "fd_seek": _fd_seek,
-  "fd_write": _fd_write
+  "fd_write": _fd_write,
+  "getElementValue_": getElementValue_
 };
 var asm = createWasm();
 /** @type {function(...*):?} */
@@ -1343,6 +1415,8 @@ var _main = Module["_main"] = createExportWrapper("main");
 var ___errno_location = createExportWrapper("__errno_location");
 /** @type {function(...*):?} */
 var _fflush = Module["_fflush"] = createExportWrapper("fflush");
+/** @type {function(...*):?} */
+var _malloc = Module["_malloc"] = createExportWrapper("malloc");
 /** @type {function(...*):?} */
 var _emscripten_stack_init = function() {
   return (_emscripten_stack_init = Module["asm"]["emscripten_stack_init"]).apply(null, arguments);
@@ -1377,11 +1451,13 @@ var _emscripten_stack_get_current = function() {
 /** @type {function(...*):?} */
 var dynCall_jiji = Module["dynCall_jiji"] = createExportWrapper("dynCall_jiji");
 var ___start_em_js = Module['___start_em_js'] = 66428;
-var ___stop_em_js = Module['___stop_em_js'] = 66644;
+var ___stop_em_js = Module['___stop_em_js'] = 66626;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===
 
+Module["stringToUTF8"] = stringToUTF8;
+Module["lengthBytesUTF8"] = lengthBytesUTF8;
 var missingLibrarySymbols = [
   'zeroMemory',
   'growMemory',
@@ -1453,9 +1529,6 @@ var missingLibrarySymbols = [
   'strLen',
   'reSign',
   'formatString',
-  'stringToUTF8Array',
-  'stringToUTF8',
-  'lengthBytesUTF8',
   'intArrayFromString',
   'intArrayToString',
   'AsciiToString',
@@ -1627,6 +1700,7 @@ var unexportedSymbols = [
   'UTF8Decoder',
   'UTF8ArrayToString',
   'UTF8ToString',
+  'stringToUTF8Array',
   'UTF16Decoder',
   'JSEvents',
   'specialHTMLTargets',

@@ -16,7 +16,6 @@ EM_JS(void *, getElementValue_, (char const *id),
 {
     var e = document.getElementById(UTF8ToString(id));
     var str = e.value;
-    console.log(str);
     var len = lengthBytesUTF8(str) + 1;
     var heap = _malloc(len);
     stringToUTF8(str, heap, len);
@@ -49,14 +48,13 @@ void setElementInnerHTML(std::string const &id, std::string const &html)
 
 void setElementInnerHTMLfromInputForm(std::string const &id, std::string const &id2)
 {
+    std::string s = getElementValue(id2);
+    if(s.empty()) return;
     EM_ASM({
-        var addTarget = document.getElementById(UTF8ToString($1));
-        if (addTarget.value === "") return;
-        var addValue = `<div class="todo"><p class="todoTitle">${addTarget.value}</p></div>`;
+        var addValue = `<div class="todo"><p class="todoTitle">${UTF8ToString($1)}</p></div>`;
         var e = document.getElementById(UTF8ToString($0));
         e.innerHTML = e.innerHTML + addValue;
-        addTarget.innerHTML = "";
-    }, id.c_str(), id2.c_str());
+    }, id.c_str(), s.c_str());
 }
 
 extern "C" void EMSCRIPTEN_KEEPALIVE addTodo()
